@@ -1,6 +1,6 @@
-import type { LambdaEvent } from '../index';
-import { Context } from 'aws-lambda';
 import { Identity } from '../api';
+import { LambdaEvent } from '../index';
+import { Context } from 'aws-lambda';
 export type FederatedIdentityId = string;
 /**
  * @example
@@ -15,11 +15,30 @@ export type UserId = FederatedIdentityId | CognitoUserId;
  */
 export interface ProcessOptions {
     /**
-     * @description Pass this value if you wish to change modify the database that the method will call. If not passed it will default to use the environment variables `DEFAULT_SSM_APP` and `DEFAULT_SSM_PARAMETER` or `DEFAULT_READ_ONLY_SSM_PARAMETER` if its called from `Database.processReadOnly`
+     * @description Pass this value if you wish to change modify the database that the method will call. If not passed it will default to use the environment variables `APP` and `SSM_PARAMETER` or `READ_ONLY_SSM_PARAMETER` if its called from `Database.processReadOnly`
      */
     ssm?: {
         app: string;
         parameter: string;
+    };
+    /**
+     * @description Pass this value if you wish to change modify the database that the method will call. If not passed it will default to use the environment variables `APP` and `SECRETS_MANAGER_PARAMETER` or `READ_ONLY_SECRETS_MANAGER_PARAMETER` if its called from `Database.processReadOnly`
+     */
+    secretsmanager?: {
+        app: string;
+        parameter: string;
+    };
+    /**
+     * @description Pass this value if you wish to modify the database that the method will call. If not passed it will default to use the environment variables `APP` and `SSM_PARAMETER` or `READ_ONLY_SSM_PARAMETER` if its called from `Database.processReadOnly`
+     */
+    rawConnectionString?: string;
+    connectionConfig?: {
+        protocol?: string;
+        host: string;
+        port?: number;
+        user: string;
+        password: string;
+        database?: string;
     };
     /**
      * @description Pass this value if you wish to modify the UserId that will be calling the database with. This option is required if the call isn't coming via an API authenticate with a Cognito User Pool.
@@ -45,6 +64,15 @@ export interface ProcessOptions {
      * Database.process(event, 'my_stored_procedure', ['my_param'], { userId: Identity.fromEvent(event).cognitoIdentityId });
      */
     identity?: Identity;
+    /**
+     * @description Enable/disable caching for connection string retrieval
+     * @default true
+     */
+    cache?: boolean;
+    /**
+     * @description Custom TTL for cached connection string
+     */
+    cacheTtl?: number;
 }
 export interface ProcessPayload {
     /**
@@ -108,12 +136,16 @@ export declare class Database {
      * - When no rows are returned, it resolves with an empty array.
      * - When 1 or more rows are returned, it resolves with the array of rows.
      */
-    static any(query: string, options: ProcessOptions): Promise<any[]>;
+    static any(query: string, data: unknown[] | {
+        [key: string]: unknown;
+    }, options?: ProcessOptions): Promise<any[]>;
     /**
      * @description Retrieves the connection string from the SSM and tries to open a connection if there isn't one open for the specified connection string.
      * @private
      */
     private static connect;
+    private static getConnectionString;
+    private static parseConnectionString;
     /**
      * @description Determines if a connection is already open for the specified connection string, otherwise it opens one.
      * @private
@@ -145,4 +177,14 @@ export declare class Database {
      */
     static getUserId(payload: LambdaEvent | Context, options?: ProcessOptions): UserId;
     private static isWarmUp;
+    /**
+     * Check if error is a PostgreSQL connection error
+     * @private
+     */
+    private static isConnectionError;
+    /**
+     * Build cache key for connection string
+     * @private
+     */
+    private static buildConnectionCacheKey;
 }

@@ -13,7 +13,7 @@ var LogType;
     LogType["warning"] = "WARNING";
     LogType["deprecated"] = "DEPRECATED";
     LogType["awsError"] = "AWS_ERROR";
-})(LogType = exports.LogType || (exports.LogType = {}));
+})(LogType || (exports.LogType = LogType = {}));
 /**
  * @description This class is used to standardize message logging, it ensures that all message has a standard format following `[TYPE][FUNCTION_NAME][...OTHER OPTIONS] message with details`
  */
@@ -219,7 +219,7 @@ class Logger {
         if (this.type === LogType.sensitive) {
             if (this.shouldLog) {
                 try {
-                    return `${this.prefix} ${messages[0]}: ${JSON.stringify(messages[1])}`;
+                    return `${this.prefix} ${messages[0]}: ${JSON.stringify(messages[1], null, 2)}`;
                 }
                 catch (e) {
                     return `${this.prefix} ${messages[0]}: ${messages[1]}`;

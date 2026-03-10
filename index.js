@@ -9,7 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createLambda = exports.getEnvironmentVariable = void 0;
+exports.getEnvironmentVariable = getEnvironmentVariable;
+exports.createLambda = createLambda;
 const api_1 = require("./api");
 const logger_1 = require("./logger");
 const smithy_client_1 = require("@aws-sdk/smithy-client");
@@ -39,7 +40,6 @@ function getEnvironmentVariable(name) {
             return process.env[name];
     }
 }
-exports.getEnvironmentVariable = getEnvironmentVariable;
 function isWarmUp(event) {
     return !!(event === null || event === void 0 ? void 0 : event.wu);
 }
@@ -122,4 +122,3 @@ function createLambda(handler, onError = defaultErrorHandler, transformer = defa
         return transformer(response, event, context);
     });
 }
-exports.createLambda = createLambda;

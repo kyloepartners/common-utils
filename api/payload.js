@@ -107,6 +107,11 @@ class Payload {
         if (value === 'undefined') {
             return undefined;
         }
+        logger_1.Logger.internal.verbose('Checking if value is a string');
+        if (typeof value !== 'string') {
+            logger_1.Logger.internal.verbose('Value is not a string, returning as is!');
+            return value;
+        }
         const decodedValue = decodeURIComponent(value);
         try {
             logger_1.Logger.internal.verbose('Trying to parse!');

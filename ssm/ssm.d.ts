@@ -7,6 +7,19 @@ export interface GetParameterOptions {
      * @description Tries to parse the response as a JSON, if it fails it will default to the raw value. If both parseBase64 and parseJson is true. This parameter will be parsed only after parseBase64 is done.
      */
     parseJson?: boolean;
+    /**
+     * @description The stage to use when adding the parameter.
+     */
+    stage?: string;
+    /**
+     * @description Enable/disable caching for this call
+     * @default true
+     */
+    cache?: boolean;
+    /**
+     * @description Custom TTL in milliseconds for this call
+     */
+    cacheTtl?: number;
 }
 export interface AddParameterOptions {
     /**
@@ -19,12 +32,45 @@ export interface AddParameterOptions {
      * @default false
      */
     convertToBase64?: boolean;
+    /**
+     * @description The stage to use when adding the parameter.
+     */
+    stage?: string;
+    /**
+     * @description Enable/disable cache invalidation for this call
+     * @default true
+     */
+    cache?: boolean;
 }
 export interface GetParametersByPathOptions {
     /**
      * @default false
      */
     recursive?: boolean;
+    /**
+     * @description The stage to use when adding the parameter.
+     */
+    stage?: string;
+    /**
+     * @description Enable/disable caching for this call
+     * @default true
+     */
+    cache?: boolean;
+    /**
+     * @description Custom TTL in milliseconds for this call
+     */
+    cacheTtl?: number;
+}
+export interface DeleteParameterOptions {
+    /**
+     * @description The stage to use when adding the parameter.
+     */
+    stage?: string;
+    /**
+     * @description Enable/disable cache invalidation for this call
+     * @default true
+     */
+    cache?: boolean;
 }
 /**
  * @description A helper class to retrieve an SSM parameter based on stages. It ensures that the standard format for the parameter is correct.
@@ -42,9 +88,12 @@ export declare class SSM {
     static addParameter(app: string, parameter: string, value: {
         [key: string]: any;
     } | string | number, key: string, options?: AddParameterOptions): Promise<void>;
-    static getParametersByPath(app: string, parameter: string, options?: GetParametersByPathOptions): Promise<{
-        [key: string]: any;
-    }>;
-    static deleteParameter(app: string, parameter: string): Promise<void>;
+    static getParametersByPath(app: string, parameter: string, options?: GetParametersByPathOptions): Promise<any>;
+    static deleteParameter(app: string, parameter: string, options?: DeleteParameterOptions): Promise<void>;
+    /**
+     * Process parameter value with parsing options
+     * @private
+     */
+    private static processValue;
     private static buildParameter;
 }

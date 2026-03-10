@@ -14,7 +14,8 @@ const client_ssm_1 = require("@aws-sdk/client-ssm");
 const logger_1 = require("../logger");
 const validate_1 = require("../validate");
 const index_1 = require("../index");
-const ssmClient = new client_ssm_1.SSMClient({ region: 'eu-west-1' });
+const cache_1 = require("../cache");
+const ssmClient = new client_ssm_1.SSMClient({});
 /**
  * @description A helper class to retrieve an SSM parameter based on stages. It ensures that the standard format for the parameter is correct.
  */
@@ -30,7 +31,16 @@ class SSM {
     static getParameter(app, parameter, options) {
         return __awaiter(this, void 0, void 0, function* () {
             logger_1.Logger.internal.verbose('SSM.getParameter');
-            const name = SSM.buildParameter(app, parameter);
+            const name = SSM.buildParameter(app, parameter, options === null || options === void 0 ? void 0 : options.stage);
+            const cacheKey = `ssm:${name}`;
+            // Check cache if enabled (default: true)
+            if ((options === null || options === void 0 ? void 0 : options.cache) !== false) {
+                const cachedValue = cache_1.ParameterCache.get(cacheKey);
+                if (cachedValue !== null) {
+                    logger_1.Logger.internal.verbose('Returning cached SSM parameter');
+                    return SSM.processValue(cachedValue, options);
+                }
+            }
             logger_1.Logger.internal.verbose('Creating GetParameterCommand');
             const command = new client_ssm_1.GetParameterCommand({
                 Name: name,
@@ -55,36 +65,19 @@ class SSM {
                 logger_1.Logger.internal.error(500, message);
                 throw new Error(message);
             }
-            logger_1.Logger.internal.verbose('Checking if parseBase64 was passed');
-            if (options === null || options === void 0 ? void 0 : options.parseBase64) {
-                logger_1.Logger.internal.verbose('Trying to convert base64 to ascii string');
-                try {
-                    value = Buffer.from(value, 'base64').toString();
-                }
-                catch (e) {
-                    logger_1.Logger.internal.warning(`Failed to parse response as Base64! returning raw response instead! Reason for failure was ${JSON.stringify(e)}`);
-                }
+            // Store in cache if enabled (default: true)
+            if ((options === null || options === void 0 ? void 0 : options.cache) !== false) {
+                cache_1.ParameterCache.set(cacheKey, value, options === null || options === void 0 ? void 0 : options.cacheTtl);
+                logger_1.Logger.internal.verbose('SSM parameter cached');
             }
-            logger_1.Logger.internal.verbose('Checking if parseJson was passed');
-            if (options === null || options === void 0 ? void 0 : options.parseJson) {
-                logger_1.Logger.internal.verbose('Trying to parse response as JSON!');
-                try {
-                    return JSON.parse(value);
-                }
-                catch (e) {
-                    logger_1.Logger.internal.warning(`Failed to parse response as JSON! Return raw response instead! Reason for failure was ${JSON.stringify(e)}`);
-                    return value;
-                }
-            }
-            logger_1.Logger.internal.verbose('Trying to parse response as JSON!');
-            return value;
+            return SSM.processValue(value, options);
         });
     }
     static addParameter(app, parameter, value, key, options) {
-        var _a;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             logger_1.Logger.internal.verbose('SSM.addParameter');
-            const name = SSM.buildParameter(app, parameter);
+            const name = SSM.buildParameter(app, parameter, options === null || options === void 0 ? void 0 : options.stage);
             logger_1.Logger.internal.verbose('Checking if value is not a string');
             if (typeof value !== 'string') {
                 logger_1.Logger.internal.verbose('Converting value to a string');
@@ -115,13 +108,28 @@ class SSM {
                 logger_1.Logger.internal.awsError(err);
                 throw err;
             });
+            // Invalidate cache after successful update
+            if ((options === null || options === void 0 ? void 0 : options.cache) !== false) {
+                const cacheKey = `ssm:${name}`;
+                cache_1.ParameterCache.clear(cacheKey);
+                logger_1.Logger.internal.verbose('SSM parameter cache invalidated after update');
+            }
         });
     }
     static getParametersByPath(app, parameter, options) {
-        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            logger_1.Logger.internal.verbose('SSM.removeParameter');
-            const name = SSM.buildParameter(app, parameter);
+            var _a, _b;
+            logger_1.Logger.internal.verbose('SSM.getParametersByPath');
+            const name = SSM.buildParameter(app, parameter, options === null || options === void 0 ? void 0 : options.stage);
+            const cacheKey = `ssm:${name}/*`;
+            // Check cache if enabled (default: true)
+            if ((options === null || options === void 0 ? void 0 : options.cache) !== false) {
+                const cachedValue = cache_1.ParameterCache.get(cacheKey);
+                if (cachedValue !== null) {
+                    logger_1.Logger.internal.verbose('Returning cached SSM parameters by path');
+                    return JSON.parse(cachedValue);
+                }
+            }
             logger_1.Logger.internal.verbose('Creating GetParametersByPathCommand');
             const command = new client_ssm_1.GetParametersByPathCommand({
                 Path: name,
@@ -144,13 +152,18 @@ class SSM {
                 }
             }
             logger_1.Logger.internal.debug(values);
+            // Store in cache if enabled (default: true)
+            if ((options === null || options === void 0 ? void 0 : options.cache) !== false) {
+                cache_1.ParameterCache.set(cacheKey, JSON.stringify(values), options === null || options === void 0 ? void 0 : options.cacheTtl);
+                logger_1.Logger.internal.verbose('SSM parameters by path cached');
+            }
             return values;
         });
     }
-    static deleteParameter(app, parameter) {
+    static deleteParameter(app, parameter, options) {
         return __awaiter(this, void 0, void 0, function* () {
             logger_1.Logger.internal.verbose('SSM.removeParameter');
-            const name = SSM.buildParameter(app, parameter);
+            const name = SSM.buildParameter(app, parameter, options === null || options === void 0 ? void 0 : options.stage);
             logger_1.Logger.internal.verbose('Creating DeleteParameterCommand');
             const command = new client_ssm_1.DeleteParameterCommand({
                 Name: name,
@@ -161,9 +174,44 @@ class SSM {
                 logger_1.Logger.internal.awsError(err);
                 throw err;
             });
+            // Invalidate cache after successful deletion
+            if ((options === null || options === void 0 ? void 0 : options.cache) !== false) {
+                const cacheKey = `ssm:${name}`;
+                cache_1.ParameterCache.clear(cacheKey);
+                logger_1.Logger.internal.verbose('SSM parameter cache invalidated after deletion');
+            }
         });
     }
-    static buildParameter(app, parameter) {
+    /**
+     * Process parameter value with parsing options
+     * @private
+     */
+    static processValue(value, options) {
+        logger_1.Logger.internal.verbose('Processing parameter value');
+        logger_1.Logger.internal.verbose('Checking if parseBase64 was passed');
+        if (options === null || options === void 0 ? void 0 : options.parseBase64) {
+            logger_1.Logger.internal.verbose('Trying to convert base64 to ascii string');
+            try {
+                value = Buffer.from(value, 'base64').toString();
+            }
+            catch (e) {
+                logger_1.Logger.internal.warning(`Failed to parse response as Base64! returning raw response instead! Reason for failure was ${JSON.stringify(e)}`);
+            }
+        }
+        logger_1.Logger.internal.verbose('Checking if parseJson was passed');
+        if (options === null || options === void 0 ? void 0 : options.parseJson) {
+            logger_1.Logger.internal.verbose('Trying to parse response as JSON!');
+            try {
+                return JSON.parse(value);
+            }
+            catch (e) {
+                logger_1.Logger.internal.warning(`Failed to parse response as JSON! Return raw response instead! Reason for failure was ${JSON.stringify(e)}`);
+                return value;
+            }
+        }
+        return value;
+    }
+    static buildParameter(app, parameter, stage) {
         logger_1.Logger.internal.verbose('Validating that the arguments received are strings');
         validate_1.Validate.string(app, 'app');
         validate_1.Validate.string(parameter, 'parameter');
@@ -172,7 +220,7 @@ class SSM {
             logger_1.Logger.internal.error(400, 'Argument "parameter" must not start with a "/".');
         }
         logger_1.Logger.internal.verbose('Creating SSM parameter string');
-        const name = `/${app}/${(0, index_1.getEnvironmentVariable)('STAGE')}/${parameter}`;
+        const name = `/${app}/${stage !== null && stage !== void 0 ? stage : (0, index_1.getEnvironmentVariable)('STAGE')}/${parameter}`;
         logger_1.Logger.internal.debug(`SSM Parameter passed ${name}`);
         return name;
     }
