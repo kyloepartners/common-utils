@@ -176,7 +176,7 @@ class Database {
             }
             const defaultSsmParameter = (0, index_1.getEnvironmentVariable)('SSM_PARAMETER');
             const defaultRoSsmParameter = (0, index_1.getEnvironmentVariable)('READ_ONLY_SSM_PARAMETER');
-            const ssmParameter = ((_f = (_e = options.ssm) === null || _e === void 0 ? void 0 : _e.parameter) !== null && _f !== void 0 ? _f : options.isReadOnly) ? defaultRoSsmParameter : defaultSsmParameter;
+            const ssmParameter = (_f = (_e = options.ssm) === null || _e === void 0 ? void 0 : _e.parameter) !== null && _f !== void 0 ? _f : (options.isReadOnly ? defaultRoSsmParameter : defaultSsmParameter);
             logger_1.Logger.internal.verbose('Check if ssm parameters are valid!');
             if (app && ssmParameter) {
                 const connectionString = yield ssm_1.SSM.getParameter(app, ssmParameter, {
@@ -187,7 +187,7 @@ class Database {
             }
             const defaultSecretsManagerParameter = (0, index_1.getEnvironmentVariable)('SECRETS_MANAGER_PARAMETER');
             const defaultRoSecretsManagerParameter = (0, index_1.getEnvironmentVariable)('READ_ONLY_SECRETS_MANAGER_PARAMETER');
-            const secretsManagerParameter = ((_h = (_g = options.secretsmanager) === null || _g === void 0 ? void 0 : _g.parameter) !== null && _h !== void 0 ? _h : options.isReadOnly) ? defaultRoSecretsManagerParameter : defaultSecretsManagerParameter;
+            const secretsManagerParameter = (_h = (_g = options.secretsmanager) === null || _g === void 0 ? void 0 : _g.parameter) !== null && _h !== void 0 ? _h : (options.isReadOnly ? defaultRoSecretsManagerParameter : defaultSecretsManagerParameter);
             logger_1.Logger.internal.verbose('Check if secrets manager parameters are valid!');
             if (app && secretsManagerParameter) {
                 const connectionString = yield secrets_manager_1.SecretsManager.getSecret(app, secretsManagerParameter, {

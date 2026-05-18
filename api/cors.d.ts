@@ -12,4 +12,5 @@ export declare class Cors {
      */
     isValid(event: APIGatewayEvent): boolean;
     isInvalid(event: APIGatewayEvent): boolean;
+    buildHeaders(event: APIGatewayEvent): Record<string, string>;
 }

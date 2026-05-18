@@ -43,20 +43,31 @@ function getEnvironmentVariable(name) {
 function isWarmUp(event) {
     return !!(event === null || event === void 0 ? void 0 : event.wu);
 }
+function isAwsSdkV2Error(error) {
+    return typeof (error === null || error === void 0 ? void 0 : error.statusCode) === 'number' && typeof (error === null || error === void 0 ? void 0 : error.code) === 'string';
+}
+function serializeError(error) {
+    return Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, ((error === null || error === void 0 ? void 0 : error.name) && { name: error.name })), ((error === null || error === void 0 ? void 0 : error.message) && { message: error.message })), ((error === null || error === void 0 ? void 0 : error.code) && { code: error.code })), ((error === null || error === void 0 ? void 0 : error.stack) && { stack: error.stack })), error);
+}
 function defaultErrorHandler(error) {
     var _a, _b;
     logger_1.Logger.internal.warning('No errorHandler was passed, generating default error response!');
     logger_1.Logger.internal.verbose('Checking if error was thrown by AWS!');
+    const serialized = serializeError(error);
     if (error instanceof smithy_client_1.ServiceException) {
-        logger_1.Logger.internal.verbose('Creating AWS failed appropriate response object!');
-        return api_1.Responses.error((_a = error.$metadata.httpStatusCode) !== null && _a !== void 0 ? _a : 400, 'This operation failed unexpectedly!', error);
+        logger_1.Logger.internal.verbose('Creating AWS SDK v3 failed appropriate response object!');
+        return api_1.Responses.error((_a = error.$metadata.httpStatusCode) !== null && _a !== void 0 ? _a : 400, 'This operation failed unexpectedly!', serialized);
     }
     if ((_b = error === null || error === void 0 ? void 0 : error.$metadata) === null || _b === void 0 ? void 0 : _b.httpStatusCode) {
-        logger_1.Logger.internal.verbose('Creating AWS failed appropriate response object!');
-        return api_1.Responses.error(error.$metadata.httpStatusCode, 'This operation failed unexpectedly!', error);
+        logger_1.Logger.internal.verbose('Creating AWS SDK v3 failed appropriate response object!');
+        return api_1.Responses.error(error.$metadata.httpStatusCode, 'This operation failed unexpectedly!', serialized);
+    }
+    if (isAwsSdkV2Error(error)) {
+        logger_1.Logger.internal.verbose('Creating AWS SDK v2 failed appropriate response object!');
+        return api_1.Responses.error(error.statusCode, 'This operation failed unexpectedly!', serialized);
     }
     logger_1.Logger.internal.verbose('Creating unknown failed response object!');
-    return api_1.Responses.internalError('This operation failed unexpectedly!', error);
+    return api_1.Responses.internalError('This operation failed unexpectedly!', serialized);
 }
 function defaultTransformer(responses) {
     logger_1.Logger.internal.verbose('Transforming response!');
@@ -74,19 +85,24 @@ function defaultTransformer(responses) {
 function createLambda(handler, onError = defaultErrorHandler, transformer = defaultTransformer) {
     logger_1.Logger.setConfig({ globalTrace: true });
     logger_1.Logger.internal.verbose('createLambda');
-    return (event, context, callback) => __awaiter(this, void 0, void 0, function* () {
+    return (...args) => __awaiter(this, void 0, void 0, function* () {
+        const [event, context] = args;
         const internalWrapper = () => __awaiter(this, void 0, void 0, function* () {
             logger_1.Logger.internal.verbose('Checking warm up!');
             if (isWarmUp(event) && event.wu) {
                 logger_1.Logger.log('Function Warm Up called! Skipping calling actual function!');
                 return api_1.Responses.success('Function warmed up successfully!');
             }
+            if (api_1.Responses.DEFAULT_CORS && api_1.Responses.DEFAULT_CORS.isInvalid(event)) {
+                logger_1.Logger.internal.verbose('Request is from an unauthorized origin or method!');
+                return api_1.Responses.forbidden('Unauthorized origin!');
+            }
             logger_1.Logger.internal.verbose('Calling handler and returning it!');
             let hasError = false;
             try {
                 logger_1.Logger.resetTrace();
                 logger_1.Logger.log('START');
-                return yield handler(event, context, callback);
+                return yield handler(...args);
             }
             catch (error) {
                 hasError = true;
@@ -106,7 +122,7 @@ function createLambda(handler, onError = defaultErrorHandler, transformer = defa
                     if (err instanceof api_1.Responses) {
                         return err;
                     }
-                    return api_1.Responses.internalError('An unexpected error occurred!', error);
+                    return api_1.Responses.internalError('An unexpected error occurred!', serializeError(error));
                 }
             }
             finally {
@@ -119,6 +135,10 @@ function createLambda(handler, onError = defaultErrorHandler, transformer = defa
             }
         });
         const response = yield internalWrapper();
-        return transformer(response, event, context);
+        const transformed = transformer(response, event, context);
+        if (api_1.Responses.DEFAULT_CORS && !transformed.headers['Access-Control-Allow-Origin']) {
+            transformed.setCors(event, api_1.Responses.DEFAULT_CORS);
+        }
+        return transformed;
     });
 }

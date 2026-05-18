@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Responses = void 0;
-const index_1 = require("../index");
 const logger_1 = require("../logger");
+const cors_1 = require("./cors");
 class Responses {
     static setDefaultCors(cors) {
         logger_1.Logger.internal.verbose('Responses.setDefaultCors');
@@ -100,47 +100,14 @@ class Responses {
         }
     }
     setCors(event, cors) {
-        var _a;
         logger_1.Logger.internal.verbose('Responses.setCors');
-        if (cors.isValid(event)) {
-            logger_1.Logger.internal.verbose('Request is from an allowed origin!');
-            this.headers['Access-Control-Allow-Headers'] = cors.allowedHeaders.join(',');
-            this.headers['Access-Control-Allow-Methods'] = cors.allowedMethods.join(',');
-            // Request its valid, so origin is guaranteed.
-            this.headers['Access-Control-Allow-Origin'] = ((_a = event.headers.Origin) !== null && _a !== void 0 ? _a : event.headers.origin);
-        }
-        else {
-            logger_1.Logger.internal.verbose('Request is from an unknown origin!');
-            // Remove Origin header
-            delete this.headers['Access-Control-Allow-Origin'];
-        }
+        this.headers = Object.assign(Object.assign({}, this.headers), cors.buildHeaders(event));
         return this;
     }
-    setCorsHeaders(event, allowedOrigins, allowedMethods, allowedHeaders = ['content-type', 'x-amz-date', 'authorization', 'x-api-key', 'x-amz-security-token', 'x-amz-user-agent']) {
-        var _a, _b, _c, _d;
-        logger_1.Logger.internal.verbose('Responses.getHeadersWithCors');
-        const origin = (_d = (_b = (_a = event === null || event === void 0 ? void 0 : event.headers) === null || _a === void 0 ? void 0 : _a.Origin) !== null && _b !== void 0 ? _b : (_c = event === null || event === void 0 ? void 0 : event.headers) === null || _c === void 0 ? void 0 : _c.origin) !== null && _d !== void 0 ? _d : null;
-        if (!origin) {
-            throw new Error('Event is missing Origin!');
-        }
-        logger_1.Logger.internal.verbose('Setting default cors parameters!');
-        this.headers['Access-Control-Allow-Headers'] = allowedHeaders.join(', ');
-        this.headers['Access-Control-Allow-Methods'] = allowedMethods.join(',');
-        logger_1.Logger.internal.verbose('Setting allowed origin!');
-        if (allowedOrigins.includes(origin)) {
-            logger_1.Logger.internal.verbose('Request is from an allowed origin!');
-            this.headers['Access-Control-Allow-Origin'] = origin;
-        }
-        else if ((0, index_1.getEnvironmentVariable)('STAGE') === 'dev') {
-            logger_1.Logger.internal.verbose(`Current STAGE is dev setting origin to localhost with port ${(0, index_1.getEnvironmentVariable)('LOCALHOST_PORT')}`);
-            this.headers['Access-Control-Allow-Origin'] = `http://localhost:${(0, index_1.getEnvironmentVariable)('LOCALHOST_PORT')}`;
-        }
-        else {
-            logger_1.Logger.internal.verbose('Request is from an unknown origin!');
-            // Remove Origin header
-            delete this.headers['Access-Control-Allow-Origin'];
-        }
-        return this;
+    setCorsHeaders(event, allowedOrigins, allowedMethods, allowedHeaders = cors_1.Cors.DEFAULT_HEADERS) {
+        logger_1.Logger.internal.verbose('Responses.setCorsHeaders');
+        const cors = new cors_1.Cors(allowedOrigins, allowedMethods, allowedHeaders);
+        return this.setCors(event, cors);
     }
 }
 exports.Responses = Responses;

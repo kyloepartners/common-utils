@@ -247,6 +247,9 @@ class Logger {
             if (typeof x === 'string') {
                 return x;
             }
+            if (x instanceof Error) {
+                return JSON.stringify(Object.assign(Object.assign({}, x), { name: x.name, message: x.message, stack: x.stack }));
+            }
             try {
                 return JSON.stringify(x);
             }

@@ -3,7 +3,7 @@ import { Callback, Context } from 'aws-lambda';
 export type ErrorHandler<TError = any> = (error: TError) => Promise<Responses> | Responses;
 export type EnvironmentVariableName = 'STAGE' | 'DEBUG' | 'VERBOSE' | 'INTERNAL' | 'SENSITIVE' | 'REGION' | 'LOCALHOST_PORT' | string;
 export declare function getEnvironmentVariable(name: EnvironmentVariableName): string | boolean | number | undefined;
-type Handler<TEvent = any, TResult = any> = (event: TEvent, context: Context, callback: Callback<TResult>) => Promise<TResult> | TResult;
+type Handler<TEvent = any, TResult = any> = (event: TEvent, context: Context, callback?: Callback<TResult>) => Promise<TResult> | TResult;
 export type LambdaEvent<TEvent = any> = TEvent | APIGatewayEvent;
 type LambdaHandler<TEvent = LambdaEvent> = Handler<TEvent, Responses>;
 /**
