@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AI = void 0;
 const client_lambda_1 = require("@aws-sdk/client-lambda");
@@ -30,14 +39,17 @@ class AIBase {
      *
      * @param request The feature type, inputs and response mode to invoke `cad-ai` with.
      */
-    async invoke(request) {
-        const stage = (0, index_1.getEnvironmentVariable)('STAGE');
-        const result = await this.lambdaClient.send(new client_lambda_1.InvokeCommand({
-            FunctionName: `cad-ai-${stage}-invoke`,
-            InvocationType: 'RequestResponse',
-            Payload: JSON.stringify(request),
-        }));
-        return JSON.parse(result.Payload?.transformToString() ?? '');
+    invoke(request) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var _a, _b;
+            const stage = (0, index_1.getEnvironmentVariable)('STAGE');
+            const result = yield this.lambdaClient.send(new client_lambda_1.InvokeCommand({
+                FunctionName: `cad-ai-${stage}-invoke`,
+                InvocationType: 'RequestResponse',
+                Payload: JSON.stringify(request),
+            }));
+            return JSON.parse((_b = (_a = result.Payload) === null || _a === void 0 ? void 0 : _a.transformToString()) !== null && _b !== void 0 ? _b : '');
+        });
     }
 }
 exports.AI = new AIBase();

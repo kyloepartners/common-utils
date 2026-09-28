@@ -81,23 +81,16 @@ class SSM {
             logger_1.Logger.internal.verbose('Checking if value is not a string');
             if (typeof value !== 'string') {
                 logger_1.Logger.internal.verbose('Converting value to a string');
-                value = JSON.stringify(value);
             }
+            const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
             logger_1.Logger.internal.verbose('Checks if convertToBase64 was passed');
-            if (options === null || options === void 0 ? void 0 : options.convertToBase64) {
-                logger_1.Logger.internal.verbose('Trying to convert to base64');
-                try {
-                    value = Buffer.from(value).toString('base64');
-                }
-                catch (err) {
-                    logger_1.Logger.internal.error(500, err);
-                    throw err;
-                }
-            }
+            const encodedValue = (options === null || options === void 0 ? void 0 : options.convertToBase64)
+                ? Buffer.from(stringValue).toString('base64')
+                : stringValue;
             logger_1.Logger.internal.verbose('Creating PutParameterCommand');
             const command = new client_ssm_1.PutParameterCommand({
                 Name: name,
-                Value: value,
+                Value: encodedValue,
                 KeyId: key,
                 Type: client_ssm_1.ParameterType.SECURE_STRING,
                 Overwrite: (_a = options === null || options === void 0 ? void 0 : options.overwrite) !== null && _a !== void 0 ? _a : false,
