@@ -13,7 +13,7 @@ exports.getEnvironmentVariable = getEnvironmentVariable;
 exports.createLambda = createLambda;
 const api_1 = require("./api");
 const logger_1 = require("./logger");
-const smithy_client_1 = require("@aws-sdk/smithy-client");
+const smithy_client_1 = require("@smithy/smithy-client");
 function getEnvironmentVariable(name) {
     var _a, _b, _c, _d, _e, _f, _g;
     switch (name) {

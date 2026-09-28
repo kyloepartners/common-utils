@@ -78,19 +78,12 @@ class SecretsManager {
             logger_1.Logger.internal.verbose('Checking if value is not a string');
             if (typeof value !== 'string') {
                 logger_1.Logger.internal.verbose('Converting value to a string');
-                value = JSON.stringify(value);
             }
+            const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
             logger_1.Logger.internal.verbose('Checks if convertToBase64 was passed');
-            if (options === null || options === void 0 ? void 0 : options.convertToBase64) {
-                logger_1.Logger.internal.verbose('Trying to convert to base64');
-                try {
-                    value = Buffer.from(value).toString('base64');
-                }
-                catch (err) {
-                    logger_1.Logger.internal.error(500, err);
-                    throw err;
-                }
-            }
+            const encodedValue = (options === null || options === void 0 ? void 0 : options.convertToBase64)
+                ? Buffer.from(stringValue).toString('base64')
+                : stringValue;
             // Check if secret already exists
             if (!(options === null || options === void 0 ? void 0 : options.overwrite)) {
                 try {
@@ -114,7 +107,7 @@ class SecretsManager {
             logger_1.Logger.internal.verbose('Creating CreateSecretCommand');
             const command = new client_secrets_manager_1.CreateSecretCommand({
                 Name: name,
-                SecretString: value,
+                SecretString: encodedValue,
                 KmsKeyId: key,
             });
             logger_1.Logger.internal.debug(command);
@@ -128,7 +121,7 @@ class SecretsManager {
                     logger_1.Logger.internal.verbose('Secret already exists, updating it instead');
                     const updateCommand = new client_secrets_manager_1.UpdateSecretCommand({
                         SecretId: name,
-                        SecretString: value,
+                        SecretString: encodedValue,
                         KmsKeyId: key,
                     });
                     yield secretsManagerClient.send(updateCommand).catch(updateErr => {
