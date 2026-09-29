@@ -48,7 +48,13 @@ class AIBase {
                 InvocationType: 'RequestResponse',
                 Payload: JSON.stringify(request),
             }));
-            return JSON.parse((_b = (_a = result.Payload) === null || _a === void 0 ? void 0 : _a.transformToString()) !== null && _b !== void 0 ? _b : '');
+            // invoke.ts is built with createLambda/Responses (this codebase's convention for every
+            // Lambda, invoked directly or not), so the raw payload is a Responses envelope -
+            // {statusCode, headers, body: JSON.stringify({message, data})} - not the AiInvokeResponse
+            // itself. The real response is nested inside body.data.
+            const envelope = JSON.parse((_b = (_a = result.Payload) === null || _a === void 0 ? void 0 : _a.transformToString()) !== null && _b !== void 0 ? _b : '{}');
+            const parsedBody = typeof envelope.body === 'string' ? JSON.parse(envelope.body) : envelope;
+            return parsedBody.data;
         });
     }
 }
