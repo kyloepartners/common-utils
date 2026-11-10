@@ -116,7 +116,8 @@ class Database {
         logger_1.Logger.internal.verbose('Checking if error was thrown by AWS!');
         if ((_a = error === null || error === void 0 ? void 0 : error.$metadata) === null || _a === void 0 ? void 0 : _a.httpStatusCode) {
             logger_1.Logger.internal.verbose('Creating AWS failed appropriate response object!');
-            return responses_1.Responses.error(error.$metadata.httpStatusCode, errorMessage, error);
+            logger_1.Logger.error(error.$metadata.httpStatusCode, error);
+            return responses_1.Responses.error(error.$metadata.httpStatusCode, errorMessage);
         }
         logger_1.Logger.internal.verbose('Creating unknown failed response object!');
         return responses_1.Responses.internalError(errorMessage, error);

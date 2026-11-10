@@ -20,3 +20,4 @@ __exportStar(require("./payload"), exports);
 __exportStar(require("./cors"), exports);
 __exportStar(require("./api-gateway.interface"), exports);
 __exportStar(require("./identity"), exports);
+__exportStar(require("./rest-api-handler"), exports);

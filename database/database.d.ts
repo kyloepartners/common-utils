@@ -63,7 +63,7 @@ export interface ProcessOptions {
      * // is the same as
      * Database.process(event, 'my_stored_procedure', ['my_param'], { userId: Identity.fromEvent(event).cognitoIdentityId });
      */
-    identity?: Identity;
+    identity?: Pick<Identity, 'cognitoIdentityId'>;
     /**
      * @description Enable/disable caching for connection string retrieval
      * @default true
@@ -73,6 +73,13 @@ export interface ProcessOptions {
      * @description Custom TTL for cached connection string
      */
     cacheTtl?: number;
+    /**
+     * @description Explicitly control TLS for this call, overriding the DB_DISABLE_SSL environment variable.
+     * `true` (or omitted, with no env override) validates TLS against the bundled RDS CA. `false` disables TLS
+     * entirely — only ever appropriate for a local/test Postgres instance that has no TLS configured.
+     * @default true
+     */
+    ssl?: boolean;
 }
 export interface ProcessPayload {
     /**
@@ -151,6 +158,18 @@ export declare class Database {
      * @private
      */
     private static getConnectionIfOpenOtherwiseCreateOne;
+    private static caBundle;
+    /**
+     * @description Lazily reads and caches the AWS RDS combined CA bundle bundled with this layer.
+     * @private
+     */
+    private static getCaBundle;
+    /**
+     * @description Resolves the ssl config to use for a connection. A per-call `options.ssl` takes priority over the
+     * `DB_DISABLE_SSL` environment variable; if neither disables it, TLS is validated against the bundled RDS CA.
+     * @private
+     */
+    private static resolveSslConfig;
     /**
      * @description Maps the payload based on the fieldsToPass values, and calls the database stored procedure with the name passed on functionName.
      *

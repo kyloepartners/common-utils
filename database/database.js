@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -22,6 +55,8 @@ const secrets_manager_1 = require("../secrets-manager");
 const connection_string_1 = require("connection-string");
 const pg_connection_string_1 = __importDefault(require("pg-connection-string"));
 const cache_1 = require("../cache");
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
 const pgp = (0, pg_promise_1.default)();
 /**
  * @description This class handles all database connections and calls the database, it automatically retrieves all the necessary connection string based on the Environment Variables or the options passed.
@@ -152,8 +187,10 @@ class Database {
             logger_1.Logger.internal.verbose('Getting connection string!');
             const connectionString = yield Database.getConnectionString(options);
             logger_1.Logger.internal.sensitive('DB Connection String', connectionString);
+            logger_1.Logger.internal.verbose('Resolving ssl config!');
+            const sslConfig = Database.resolveSslConfig(options);
             logger_1.Logger.internal.verbose('Get connection if open otherwise create one!');
-            return Database.getConnectionIfOpenOtherwiseCreateOne(connectionString.toString());
+            return Database.getConnectionIfOpenOtherwiseCreateOne(connectionString.toString(), sslConfig);
         });
     }
     static getConnectionString(options) {
@@ -217,7 +254,7 @@ class Database {
      * @description Determines if a connection is already open for the specified connection string, otherwise it opens one.
      * @private
      */
-    static getConnectionIfOpenOtherwiseCreateOne(connectionString) {
+    static getConnectionIfOpenOtherwiseCreateOne(connectionString, ssl) {
         logger_1.Logger.internal.verbose('Database.getConnectionIfOpenOtherwiseCreateOne');
         let db;
         if (Database.connections[connectionString]) {
@@ -226,11 +263,41 @@ class Database {
         }
         else {
             logger_1.Logger.internal.verbose('Creating a new connection to use!');
-            Database.connections[connectionString] = pgp({ connectionString });
+            Database.connections[connectionString] = pgp({ connectionString, ssl });
             db = Database.connections[connectionString];
             logger_1.Logger.internal.verbose('New connection created, using it!');
         }
         return db;
+    }
+    /**
+     * @description Lazily reads and caches the AWS RDS combined CA bundle bundled with this layer.
+     * @private
+     */
+    static getCaBundle() {
+        if (Database.caBundle === undefined) {
+            try {
+                Database.caBundle = fs.readFileSync(path.join(__dirname, 'certs', 'global-bundle.pem'), 'utf-8');
+            }
+            catch (error) {
+                const message = 'RDS CA bundle not found in the deployed layer package — the build did not package certs/global-bundle.pem correctly.';
+                logger_1.Logger.internal.error(500, message);
+                throw new Error(message);
+            }
+        }
+        return Database.caBundle;
+    }
+    /**
+     * @description Resolves the ssl config to use for a connection. A per-call `options.ssl` takes priority over the
+     * `DB_DISABLE_SSL` environment variable; if neither disables it, TLS is validated against the bundled RDS CA.
+     * @private
+     */
+    static resolveSslConfig(options) {
+        const envDisablesSsl = (0, index_1.getEnvironmentVariable)('DB_DISABLE_SSL') === true;
+        const disableSsl = options.ssl !== undefined ? options.ssl === false : envDisablesSsl;
+        if (disableSsl) {
+            return false;
+        }
+        return { ca: Database.getCaBundle(), rejectUnauthorized: true };
     }
     /**
      * @description Maps the payload based on the fieldsToPass values, and calls the database stored procedure with the name passed on functionName.

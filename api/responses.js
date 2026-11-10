@@ -85,7 +85,13 @@ class Responses {
         logger_1.Logger.internal.verbose('Responses.constructor');
         logger_1.Logger.internal.verbose('Assigning values to class properties!');
         this.statusCode = statusCode;
-        if (data) {
+        if (data && statusCode >= 500) {
+            // Server error data is usually the raw error (database messages, SQL, stack traces), so it is
+            // logged and never sent to the caller.
+            logger_1.Logger.error(statusCode, message, data);
+            this.body = JSON.stringify({ message });
+        }
+        else if (data) {
             logger_1.Logger.internal.verbose('Adding data parameter to body!');
             this.body = JSON.stringify({
                 message,

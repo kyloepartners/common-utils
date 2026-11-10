@@ -27,6 +27,8 @@ function getEnvironmentVariable(name) {
             return process.env.INTERNAL === 'true' || process.env.internal === 'true';
         case 'SENSITIVE':
             return process.env.SENSITIVE === 'true' || process.env.sensitive === 'true';
+        case 'DB_DISABLE_SSL':
+            return process.env.DB_DISABLE_SSL === 'true' || process.env.db_disable_ssl === 'true';
         case 'REGION':
             const region = (_e = (_d = (_c = process.env.AWS_REGION) !== null && _c !== void 0 ? _c : process.env.AWS_DEFAULT_REGION) !== null && _d !== void 0 ? _d : process.env.REGION) !== null && _e !== void 0 ? _e : process.env.region;
             if (!region) {
@@ -46,28 +48,29 @@ function isWarmUp(event) {
 function isAwsSdkV2Error(error) {
     return typeof (error === null || error === void 0 ? void 0 : error.statusCode) === 'number' && typeof (error === null || error === void 0 ? void 0 : error.code) === 'string';
 }
-function serializeError(error) {
-    return Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, ((error === null || error === void 0 ? void 0 : error.name) && { name: error.name })), ((error === null || error === void 0 ? void 0 : error.message) && { message: error.message })), ((error === null || error === void 0 ? void 0 : error.code) && { code: error.code })), ((error === null || error === void 0 ? void 0 : error.stack) && { stack: error.stack })), error);
+// AWS errors can be 4xx, which Responses would return to the caller, so the error is only logged.
+function awsErrorResponse(statusCode, error) {
+    logger_1.Logger.error(statusCode, error);
+    return api_1.Responses.error(statusCode, 'This operation failed unexpectedly!');
 }
 function defaultErrorHandler(error) {
     var _a, _b;
     logger_1.Logger.internal.warning('No errorHandler was passed, generating default error response!');
     logger_1.Logger.internal.verbose('Checking if error was thrown by AWS!');
-    const serialized = serializeError(error);
     if (error instanceof smithy_client_1.ServiceException) {
         logger_1.Logger.internal.verbose('Creating AWS SDK v3 failed appropriate response object!');
-        return api_1.Responses.error((_a = error.$metadata.httpStatusCode) !== null && _a !== void 0 ? _a : 400, 'This operation failed unexpectedly!', serialized);
+        return awsErrorResponse((_a = error.$metadata.httpStatusCode) !== null && _a !== void 0 ? _a : 400, error);
     }
     if ((_b = error === null || error === void 0 ? void 0 : error.$metadata) === null || _b === void 0 ? void 0 : _b.httpStatusCode) {
         logger_1.Logger.internal.verbose('Creating AWS SDK v3 failed appropriate response object!');
-        return api_1.Responses.error(error.$metadata.httpStatusCode, 'This operation failed unexpectedly!', serialized);
+        return awsErrorResponse(error.$metadata.httpStatusCode, error);
     }
     if (isAwsSdkV2Error(error)) {
         logger_1.Logger.internal.verbose('Creating AWS SDK v2 failed appropriate response object!');
-        return api_1.Responses.error(error.statusCode, 'This operation failed unexpectedly!', serialized);
+        return awsErrorResponse(error.statusCode, error);
     }
     logger_1.Logger.internal.verbose('Creating unknown failed response object!');
-    return api_1.Responses.internalError('This operation failed unexpectedly!', serialized);
+    return api_1.Responses.internalError('This operation failed unexpectedly!', error);
 }
 function defaultTransformer(responses) {
     logger_1.Logger.internal.verbose('Transforming response!');
@@ -122,7 +125,7 @@ function createLambda(handler, onError = defaultErrorHandler, transformer = defa
                     if (err instanceof api_1.Responses) {
                         return err;
                     }
-                    return api_1.Responses.internalError('An unexpected error occurred!', serializeError(error));
+                    return api_1.Responses.internalError('An unexpected error occurred!', error);
                 }
             }
             finally {
