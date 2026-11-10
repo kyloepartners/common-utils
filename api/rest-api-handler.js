@@ -95,7 +95,15 @@ function createRestApiHandler(routes, options = {}) {
                 return responses_1.Responses.forbidden('Forbidden');
             }
         }
-        return definition.action({ event, context, identity, payload: payload_1.Payload.fromMethod(event) });
+        let payload;
+        try {
+            payload = payload_1.Payload.fromMethod(event);
+        }
+        catch (_b) {
+            // Payload.fromBody reports an unparseable body as a server error; it's the caller's
+            return responses_1.Responses.badRequest('The request body is not valid JSON.');
+        }
+        return definition.action({ event, context, identity, payload });
     });
     return (0, index_1.createLambda)((event, context) => route(event, context), genericError, (response, event) => response.setCors(event, cors));
 }
